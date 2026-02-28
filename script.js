@@ -1,5 +1,5 @@
 // Change this port if your terminal shows a different one!
-const API_URL = 'http://127.0.0.1:5002/api/puzzle';
+const API_URL = 'https://one5113-project2.onrender.com/api/puzzle';
 
 const CATEGORY_COLORS = ['cat-0', 'cat-1', 'cat-2', 'cat-3'];
 
