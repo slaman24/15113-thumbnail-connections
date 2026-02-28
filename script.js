@@ -12,12 +12,22 @@ let solvedCategoryNames = [];
 const submitBtn = document.getElementById('submit-btn');
 const deselectBtn = document.getElementById('deselect-btn');
 const hintBtn = document.getElementById('hint-btn');
+const guessModal = document.getElementById('guess-modal');
+const guessInput = document.getElementById('guess-input');
+const guessSubmitBtn = document.getElementById('guess-submit-btn');
+const guessCancelBtn = document.getElementById('guess-cancel-btn');
+const guessPreview = document.getElementById('guess-preview');
 
 let hintMode = false;
 
 submitBtn.addEventListener('click', checkMatch);
 deselectBtn.addEventListener('click', deselectAll);
 hintBtn.addEventListener('click', toggleHintMode);
+guessSubmitBtn.addEventListener('click', submitCategoryGuess);
+guessCancelBtn.addEventListener('click', closeGuessModal);
+guessInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submitCategoryGuess();
+});
 
 function toggleHintMode() {
     hintMode = !hintMode;
@@ -133,12 +143,106 @@ function checkMatch() {
     const isMatch = selectedCards.every(c => c.category === firstCat);
 
     if (isMatch) {
-        handleCorrectGuess(firstCat);
+        // Cards are correct — now ask the user to name the category
+        openGuessModal();
     } else if (isOneAway()) {
         handleCloseGuess();
     } else {
         handleWrongGuess();
     }
+}
+
+function openGuessModal() {
+    // Show the 4 selected thumbnails in the preview
+    guessPreview.innerHTML = selectedCards
+        .map(c => `<img src="${c.data.url}" alt="thumbnail">`)
+        .join('');
+
+    guessInput.value = '';
+    guessModal.classList.remove('hidden');
+    setTimeout(() => guessInput.focus(), 100);
+}
+
+function closeGuessModal() {
+    guessModal.classList.add('hidden');
+    guessInput.value = '';
+}
+
+function submitCategoryGuess() {
+    const guess = guessInput.value.trim();
+    if (!guess) return;
+
+    const actualCategory = selectedCards[0].category;
+    const isCorrectGuess = fuzzyMatch(guess, actualCategory);
+
+    closeGuessModal();
+
+    if (isCorrectGuess) {
+        handleCorrectGuess(actualCategory);
+    } else {
+        // Cards were right but category name was wrong — no mistake penalty
+        setMessage(`Not quite the category name! Try again...`, 'close');
+        setTimeout(() => {
+            selectedCards.forEach(c => c.element.classList.remove('selected'));
+            selectedCards = [];
+            updateButtons();
+        }, 1200);
+    }
+}
+
+/**
+ * Fuzzy matching: checks if the user's guess is close enough.
+ * Matches if:
+ * 1. Exact match (case-insensitive)
+ * 2. One string contains the other (e.g. "Cooking" matches "Cooking Tutorials")
+ * 3. Any word in the guess appears in the category or vice versa (2+ chars)
+ * 4. Levenshtein distance is small relative to the category length
+ */
+function fuzzyMatch(guess, actual) {
+    const g = guess.toLowerCase().trim();
+    const a = actual.toLowerCase().trim();
+
+    // 1. Exact match
+    if (g === a) return true;
+
+    // 2. Containment — either direction
+    if (a.includes(g) || g.includes(a)) return true;
+
+    // 3. Word overlap — any significant word in common
+    const guessWords = g.split(/\s+/).filter(w => w.length >= 2);
+    const actualWords = a.split(/\s+/).filter(w => w.length >= 2);
+    const hasCommonWord = guessWords.some(gw =>
+        actualWords.some(aw => aw.includes(gw) || gw.includes(aw))
+    );
+    if (hasCommonWord) return true;
+
+    // 4. Levenshtein distance — allow roughly 35% edits
+    const distance = levenshtein(g, a);
+    const threshold = Math.floor(a.length * 0.35);
+    if (distance <= threshold) return true;
+
+    return false;
+}
+
+function levenshtein(s, t) {
+    const m = s.length;
+    const n = t.length;
+    const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+
+    for (let i = 0; i <= m; i++) dp[i][0] = i;
+    for (let j = 0; j <= n; j++) dp[0][j] = j;
+
+    for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+            const cost = s[i - 1] === t[j - 1] ? 0 : 1;
+            dp[i][j] = Math.min(
+                dp[i - 1][j] + 1,
+                dp[i][j - 1] + 1,
+                dp[i - 1][j - 1] + cost
+            );
+        }
+    }
+    return dp[m][n];
 }
 
 function handleCorrectGuess(category) {

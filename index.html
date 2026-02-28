@@ -21,7 +21,7 @@
             <span class="logo-icon">▶</span>
             <button id="hint-btn" class="hint-btn" title="Toggle Hint Mode">💡 Hints</button>
         </div>
-        <p class="subtitle">Find groups of four related YouTube videos</p>
+        <p class="subtitle">Find groups of four related YouTube videos and guess the categories!</p>
         <div id="message-board">Loading today's puzzle...</div>
         <div class="mistakes-row" id="mistakes-row"></div>
     </div>
@@ -33,6 +33,18 @@
     <div class="controls">
         <button id="deselect-btn" class="btn btn-secondary" disabled>Deselect All</button>
         <button id="submit-btn" class="btn btn-primary" disabled>Submit</button>
+    </div>
+
+    <div id="guess-modal" class="guess-modal hidden">
+        <div class="guess-modal-content">
+            <h3>What connects these 4 videos?</h3>
+            <div id="guess-preview" class="guess-preview"></div>
+            <input type="text" id="guess-input" placeholder="Type your guess..." autocomplete="off" />
+            <div class="guess-modal-buttons">
+                <button id="guess-cancel-btn" class="btn btn-secondary">Cancel</button>
+                <button id="guess-submit-btn" class="btn btn-primary">Guess</button>
+            </div>
+        </div>
     </div>
 
     <script src="script.js"></script>
