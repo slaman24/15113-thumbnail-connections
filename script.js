@@ -96,7 +96,6 @@ function renderBoard(thumbnails) {
                 </div>
                 <div class="card-back">
                     <strong>${video.title}</strong>
-                    <p>${video.channel}</p>
                 </div>
             </div>
         `;
