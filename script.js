@@ -1,23 +1,67 @@
 // Change this port if your terminal shows a different one!
 const API_URL = 'http://127.0.0.1:5002/api/puzzle';
 
+const CATEGORY_COLORS = ['cat-0', 'cat-1', 'cat-2', 'cat-3'];
+
 let selectedCards = [];
 let solvedCategories = 0;
+let mistakesLeft = 4;
+let allThumbnails = [];
+let solvedCategoryNames = [];
+
+const submitBtn = document.getElementById('submit-btn');
+const deselectBtn = document.getElementById('deselect-btn');
+const hintBtn = document.getElementById('hint-btn');
+
+let hintMode = false;
+
+submitBtn.addEventListener('click', checkMatch);
+deselectBtn.addEventListener('click', deselectAll);
+hintBtn.addEventListener('click', toggleHintMode);
+
+function toggleHintMode() {
+    hintMode = !hintMode;
+    document.body.classList.toggle('hint-mode', hintMode);
+    hintBtn.classList.toggle('active', hintMode);
+    hintBtn.textContent = hintMode ? 'Hints ON' : 'Hints OFF';
+}
 
 async function initGame() {
     try {
         const response = await fetch(API_URL);
         const data = await response.json();
         const msgBoard = document.getElementById('message-board');
-        
+
         if (data.thumbnails) {
-            msgBoard.innerText = "Select 4 related thumbnails!";
-            msgBoard.style.color = "#aaa";
-            renderBoard(data.thumbnails);
+            setMessage('Select 4 related thumbnails!', 'default');
+            allThumbnails = data.thumbnails;
+            renderBoard(allThumbnails);
+            renderMistakeDots();
         }
     } catch (err) {
         console.error(err);
-        document.getElementById('message-board').innerText = "Backend not found. Is app.py running?";
+        setMessage("Backend not found. Is app.py running?", 'error');
+    }
+}
+
+function setMessage(text, type) {
+    const msgBoard = document.getElementById('message-board');
+    msgBoard.innerText = text;
+    msgBoard.className = '';
+    if (type === 'success') msgBoard.classList.add('success');
+    else if (type === 'error') msgBoard.classList.add('error');
+    else if (type === 'win') msgBoard.classList.add('win');
+    else if (type === 'close') msgBoard.classList.add('close');
+}
+
+function renderMistakeDots() {
+    const row = document.getElementById('mistakes-row');
+    row.innerHTML = '';
+    for (let i = 0; i < 4; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'mistake-dot';
+        if (i >= mistakesLeft) dot.classList.add('used');
+        row.appendChild(dot);
     }
 }
 
@@ -25,9 +69,16 @@ function renderBoard(thumbnails) {
     const board = document.getElementById('game-board');
     board.innerHTML = '';
 
-    thumbnails.forEach(video => {
+    // Only render unsolved thumbnails
+    const unsolved = thumbnails.filter(
+        v => !solvedCategoryNames.includes(v.category)
+    );
+
+    unsolved.forEach((video, i) => {
         const card = document.createElement('div');
-        card.className = 'card-container';
+        card.className = 'card-container entering';
+        card.style.setProperty('--entry-delay', `${i * 0.04}s`);
+        card.dataset.id = video.id;
         card.innerHTML = `
             <div class="card-inner">
                 <div class="card-front">
@@ -46,53 +97,308 @@ function renderBoard(thumbnails) {
 }
 
 function handleSelection(el, data) {
-    if (el.classList.contains('solved') || el.classList.contains('selected')) {
-        // Deselect if already selected
-        if (el.classList.contains('selected')) {
-            el.classList.remove('selected');
-            selectedCards = selectedCards.filter(c => c.id !== data.id);
-        }
+    if (el.classList.contains('solved')) return;
+
+    // Deselect
+    if (el.classList.contains('selected')) {
+        el.classList.remove('selected');
+        selectedCards = selectedCards.filter(c => c.id !== data.id);
+        updateButtons();
         return;
     }
 
-    if (selectedCards.length < 4) {
-        el.classList.add('selected');
-        selectedCards.push({ id: data.id, category: data.category, element: el });
-    }
+    if (selectedCards.length >= 4) return;
 
-    if (selectedCards.length === 4) {
-        checkMatch();
-    }
+    el.classList.add('selected');
+    selectedCards.push({ id: data.id, category: data.category, element: el, data });
+
+    updateButtons();
+}
+
+function updateButtons() {
+    submitBtn.disabled = selectedCards.length !== 4;
+    deselectBtn.disabled = selectedCards.length === 0;
+}
+
+function deselectAll() {
+    selectedCards.forEach(c => c.element.classList.remove('selected'));
+    selectedCards = [];
+    updateButtons();
 }
 
 function checkMatch() {
+    if (selectedCards.length !== 4) return;
+
     const firstCat = selectedCards[0].category;
     const isMatch = selectedCards.every(c => c.category === firstCat);
-    const msgBoard = document.getElementById('message-board');
 
     if (isMatch) {
-        msgBoard.innerText = `Correct! Category: ${firstCat}`;
-        msgBoard.style.color = "#2ecc71";
-        
-        selectedCards.forEach(c => {
-            c.element.classList.remove('selected');
-            c.element.classList.add('solved');
-        });
-        
-        solvedCategories++;
-        selectedCards = [];
-
-        if (solvedCategories === 4) {
-            msgBoard.innerText = "🎉 You cleared the board!";
-        }
+        handleCorrectGuess(firstCat);
+    } else if (isOneAway()) {
+        handleCloseGuess();
     } else {
-        msgBoard.innerText = "Not quite... try again!";
-        msgBoard.style.color = "#e74c3c";
-        
+        handleWrongGuess();
+    }
+}
+
+function handleCorrectGuess(category) {
+    setMessage(`Correct! Category: ${category}`, 'success');
+    solvedCategoryNames.push(category);
+
+    const cardElements = selectedCards.map(c => c.element);
+    const thumbnailUrls = selectedCards.map(c => c.data.url);
+    const colorIndex = solvedCategories; // capture before incrementing
+
+    solvedCategories++;
+    selectedCards = [];
+    updateButtons();
+
+    // Animate cards away then create solved row
+    animateCardsToSolved(cardElements, category, thumbnailUrls, colorIndex);
+}
+
+function animateCardsToSolved(cardElements, category, thumbnailUrls, colorIndex) {
+    const solvedArea = document.getElementById('solved-area');
+    const board = document.getElementById('game-board');
+
+    // Step 1: Record current positions of all selected cards
+    const cardRects = cardElements.map(el => el.getBoundingClientRect());
+
+    // Step 2: Fix cards in place and start animating them up
+    cardElements.forEach((el, i) => {
+        const rect = cardRects[i];
+        el.classList.add('animating-to-solved');
+        el.classList.remove('selected');
+        el.style.left = rect.left + 'px';
+        el.style.top = rect.top + 'px';
+        el.style.width = rect.width + 'px';
+        el.style.height = rect.height + 'px';
+    });
+
+    // Step 3: After a brief frame, animate them to collapse together
+    requestAnimationFrame(() => {
+        const targetRect = solvedArea.getBoundingClientRect();
+        const targetY = targetRect.bottom;
+        const totalWidth = solvedArea.clientWidth || board.clientWidth;
+        const thumbWidth = (totalWidth - 3 * 6) / 4; // 4 thumbs, 6px gaps
+
+        cardElements.forEach((el, i) => {
+            const startLeft = (totalWidth - (4 * thumbWidth + 3 * 6)) / 2;
+            el.style.left = (targetRect.left + startLeft + i * (thumbWidth + 6)) + 'px';
+            el.style.top = targetY + 'px';
+            el.style.width = thumbWidth + 'px';
+            el.style.height = (thumbWidth * 9 / 16) + 'px';
+            el.style.opacity = '0';
+        });
+    });
+
+    // Step 4: After animation completes, clean up and create solved row
+    setTimeout(() => {
+        cardElements.forEach(el => el.remove());
+
+        // Create the solved row
+        const row = document.createElement('div');
+        row.className = `solved-row ${CATEGORY_COLORS[colorIndex]}`;
+        row.innerHTML = `
+            <div class="solved-label">${category}</div>
+            <div class="solved-thumbnails">
+                ${thumbnailUrls.map(url => `<img src="${url}" alt="thumbnail">`).join('')}
+            </div>
+        `;
+        solvedArea.appendChild(row);
+
+        // Re-render remaining cards
+        renderBoard(allThumbnails);
+
+        // Check win condition
+        if (solvedCategories === 4) {
+            setTimeout(() => {
+                setMessage('🎉 You cleared the board!', 'win');
+                launchConfetti();
+            }, 300);
+        }
+    }, 650);
+}
+
+function isOneAway() {
+    // Build up a counts dict for each category in selected cards
+    const categoryCounts = {};
+    selectedCards.forEach(c => {
+        if (categoryCounts[c.category]) {
+            categoryCounts[c.category] += 1;
+        } else {
+            categoryCounts[c.category] = 1;
+        }
+    });
+    return Object.values(categoryCounts).some(count => count === 3);
+}
+
+function handleCloseGuess() {
+    mistakesLeft--;
+    renderMistakeDots();
+
+    if (mistakesLeft <= 0) {
+        setMessage('Out of guesses! Better luck next time.', 'error');
+        // Disable all interactions
+        document.querySelectorAll('.card-container').forEach(el => {
+            el.style.pointerEvents = 'none';
+        });
+        submitBtn.disabled = true;
+        deselectBtn.disabled = true;
+        selectedCards.forEach(c => c.element.classList.remove('selected'));
+        selectedCards = [];
+        revealAll();
+        return;
+    }
+
+    setMessage('One away...', 'close');
+
+    // Shake animation is handled by CSS class on message board
+    setTimeout(() => {
+        selectedCards.forEach(c => c.element.classList.remove('selected'));
+        selectedCards = [];
+        updateButtons();
+    }, 800);
+}
+
+function handleWrongGuess() {
+    mistakesLeft--;
+    renderMistakeDots();
+
+    if (mistakesLeft <= 0) {
+        setMessage('Out of guesses! Better luck next time.', 'error');
+        // Disable all interactions
+        document.querySelectorAll('.card-container').forEach(el => {
+            el.style.pointerEvents = 'none';
+        });
+        submitBtn.disabled = true;
+        deselectBtn.disabled = true;
+        selectedCards.forEach(c => c.element.classList.remove('selected'));
+        selectedCards = [];
+        revealAll();
+        return;
+    }
+
+    setMessage('Not quite... try again!', 'error');
+
+    // Shake animation is handled by CSS class on message board
+    setTimeout(() => {
+        selectedCards.forEach(c => c.element.classList.remove('selected'));
+        selectedCards = [];
+        updateButtons();
+    }, 800);
+}
+
+function revealAll() {
+    const solvedArea = document.getElementById('solved-area');
+    const board = document.getElementById('game-board');
+
+    // Group remaining unsolved thumbnails by category
+    const remaining = allThumbnails.filter(
+        v => !solvedCategoryNames.includes(v.category)
+    );
+
+    const groups = {};
+    remaining.forEach(v => {
+        if (!groups[v.category]) groups[v.category] = [];
+        groups[v.category].push(v);
+    });
+
+    const categoryList = Object.keys(groups);
+
+    // Reveal each category group sequentially with a stagger
+    categoryList.forEach((category, groupIndex) => {
+        const delay = groupIndex * 800; // stagger each group by 800ms
+
         setTimeout(() => {
-            selectedCards.forEach(c => c.element.classList.remove('selected'));
-            selectedCards = [];
-        }, 1000);
+            const videos = groups[category];
+            const colorIndex = solvedCategories;
+            solvedCategories++;
+            solvedCategoryNames.push(category);
+
+            // Find the card elements on the board that belong to this category
+            const cardElements = [];
+            const thumbnailUrls = [];
+            videos.forEach(video => {
+                const card = board.querySelector(`[data-id="${video.id}"]`);
+                if (card) {
+                    cardElements.push(card);
+                    thumbnailUrls.push(video.url);
+                }
+            });
+
+            if (cardElements.length === 0) return;
+
+            // Record positions, fix them, then animate to collapse
+            const cardRects = cardElements.map(el => el.getBoundingClientRect());
+
+            cardElements.forEach((el, i) => {
+                const rect = cardRects[i];
+                el.classList.add('animating-to-solved');
+                el.classList.remove('selected');
+                el.style.left = rect.left + 'px';
+                el.style.top = rect.top + 'px';
+                el.style.width = rect.width + 'px';
+                el.style.height = rect.height + 'px';
+            });
+
+            requestAnimationFrame(() => {
+                const targetRect = solvedArea.getBoundingClientRect();
+                const targetY = targetRect.bottom;
+                const totalWidth = solvedArea.clientWidth || board.clientWidth;
+                const thumbWidth = (totalWidth - 3 * 6) / 4;
+
+                cardElements.forEach((el, i) => {
+                    const startLeft = (totalWidth - (4 * thumbWidth + 3 * 6)) / 2;
+                    el.style.left = (targetRect.left + startLeft + i * (thumbWidth + 6)) + 'px';
+                    el.style.top = targetY + 'px';
+                    el.style.width = thumbWidth + 'px';
+                    el.style.height = (thumbWidth * 9 / 16) + 'px';
+                    el.style.opacity = '0';
+                });
+            });
+
+            // After animation, create solved row and clean up
+            setTimeout(() => {
+                cardElements.forEach(el => el.remove());
+
+                const row = document.createElement('div');
+                row.className = `solved-row ${CATEGORY_COLORS[colorIndex]}`;
+                row.innerHTML = `
+                    <div class="solved-label">${category}</div>
+                    <div class="solved-thumbnails">
+                        ${thumbnailUrls.map(url => `<img src="${url}" alt="thumbnail">`).join('')}
+                    </div>
+                `;
+                solvedArea.appendChild(row);
+
+                // Re-render remaining cards after each group
+                renderBoard(allThumbnails);
+            }, 650);
+        }, delay);
+    });
+}
+
+/* ===== Confetti ===== */
+function launchConfetti() {
+    const canvas = document.getElementById('confetti-canvas');
+    const colors = ['#fbbf24', '#34d399', '#60a5fa', '#c084fc', '#f87171', '#fb923c'];
+
+    for (let i = 0; i < 80; i++) {
+        setTimeout(() => {
+            const piece = document.createElement('div');
+            piece.className = 'confetti-piece';
+            piece.style.left = Math.random() * 100 + 'vw';
+            piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+            piece.style.width = (Math.random() * 8 + 5) + 'px';
+            piece.style.height = (Math.random() * 8 + 5) + 'px';
+            piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+            piece.style.setProperty('--fall-duration', (Math.random() * 2 + 2) + 's');
+            piece.style.setProperty('--rotation', (Math.random() * 720 - 360) + 'deg');
+            canvas.appendChild(piece);
+
+            setTimeout(() => piece.remove(), 4500);
+        }, i * 30);
     }
 }
 

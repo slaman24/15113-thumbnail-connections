@@ -1,53 +1,242 @@
+/* ===== Reset & Base ===== */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #121212;
-    /* Dark theme looks great with YT thumbnails */
-    color: white;
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #0f0f0f;
+    color: #e8e8e8;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 20px;
-    margin: 0;
+    padding: 24px 16px;
+    min-height: 100vh;
+    overflow-x: hidden;
 }
 
+/* ===== Header ===== */
 .header {
     text-align: center;
-    margin-bottom: 30px;
+    margin-bottom: 24px;
+    max-width: 640px;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+.logo-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    background: linear-gradient(135deg, #ff0000, #cc0000);
+    border-radius: 10px;
+    font-size: 18px;
+    color: white;
+    flex-shrink: 0;
+}
+
+.logo h1 {
+    font-size: 1.75rem;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+    background: linear-gradient(135deg, #ffffff, #aaaaaa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.subtitle {
+    color: #888;
+    font-size: 0.95rem;
+    margin-bottom: 12px;
 }
 
 #message-board {
-    height: 30px;
-    font-weight: bold;
-    margin-top: 10px;
-    color: #ff4e4e;
+    min-height: 32px;
+    font-weight: 600;
+    font-size: 1rem;
+    padding: 8px 20px;
+    border-radius: 20px;
+    display: inline-block;
+    transition: all 0.3s ease;
+    color: #aaa;
 }
 
+#message-board.success {
+    color: #4ade80;
+    background: rgba(74, 222, 128, 0.1);
+}
+
+#message-board.error {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.1);
+    animation: headShake 0.5s ease;
+}
+
+#message-board.win {
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.1);
+    font-size: 1.2rem;
+}
+
+#message-board.close {
+    color: #60a5fa;
+    background: rgba(96, 165, 250, 0.1);
+}
+
+.hint-btn {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 100;
+    background: #232323;
+    color: #aaa;
+    border: 2px solid #444;
+    border-radius: 10px;
+    padding: 8px 16px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.25s ease;
+}
+
+.hint-btn:hover {
+    background: #333
+}
+
+.hint-btn.active {
+    background: #fbbf24;
+    color: #1a1a2e;
+    border-color: #fbbf24;
+    font-weight: 700;
+    box-shadow: 0 0 12px rgba(251, 191, 36, 0.4);
+}
+
+/* Mistakes dots */
+.mistakes-row {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 10px;
+    min-height: 20px;
+}
+
+.mistake-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #555;
+    transition: background 0.3s ease;
+}
+
+.mistake-dot.used {
+    background: #ef4444;
+    animation: popIn 0.3s ease;
+}
+
+/* ===== Solved Area ===== */
+#solved-area {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 880px;
+    width: 100%;
+    margin-bottom: 0;
+    transition: margin 0.3s ease;
+}
+
+#solved-area:not(:empty) {
+    margin-bottom: 14px;
+}
+
+.solved-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    animation: solvedSlideIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    opacity: 0;
+    transform: translateY(-10px);
+}
+
+.solved-row .solved-label {
+    font-weight: 800;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    text-align: center;
+    color: #111;
+}
+
+.solved-row .solved-thumbnails {
+    display: flex;
+    gap: 6px;
+    width: 100%;
+    justify-content: center;
+}
+
+.solved-row .solved-thumbnails img {
+    flex: 1;
+    min-width: 0;
+    max-width: 25%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 6px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    border: 1.5px solid rgba(0,0,0,0.12);
+}
+
+/* Category color bands */
+.solved-row.cat-0 { background: linear-gradient(135deg, #facc15, #eab308); }
+.solved-row.cat-1 { background: linear-gradient(135deg, #34d399, #10b981); }
+.solved-row.cat-2 { background: linear-gradient(135deg, #60a5fa, #3b82f6); }
+.solved-row.cat-3 { background: linear-gradient(135deg, #c084fc, #a855f7); }
+
+/* ===== Game Grid ===== */
 .grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 15px;
-    max-width: 1000px;
+    gap: 10px;
+    max-width: 880px;
     width: 100%;
+    transition: all 0.3s ease;
 }
 
-/* 3D Card Container */
+/* ===== Card ===== */
 .card-container {
-    perspective: 1000px;
+    perspective: 900px;
     aspect-ratio: 16 / 9;
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+                opacity 0.4s ease;
 }
 
 .card-inner {
     position: relative;
     width: 100%;
     height: 100%;
-    transition: transform 0.6s;
+    transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+                box-shadow 0.3s ease;
     transform-style: preserve-3d;
     cursor: pointer;
+    border-radius: 10px;
 }
 
-/* Hover effect */
-.card-container:hover .card-inner {
+/* Hover flip effect only occurs when hint mode active*/
+body.hint-mode .card-container:hover .card-inner {
     transform: rotateY(180deg);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
 }
 
 .card-front,
@@ -56,36 +245,264 @@ body {
     width: 100%;
     height: 100%;
     backface-visibility: hidden;
-    border-radius: 8px;
+    border-radius: 10px;
     overflow: hidden;
-    border: 2px solid #333;
+    border: 2.5px solid #2a2a2a;
+    transition: border-color 0.25s ease, border-width 0.15s ease;
 }
 
 .card-front img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: block;
 }
 
 .card-back {
-    background-color: #1e1e1e;
+    background: linear-gradient(145deg, #1a1a1a, #252525);
     transform: rotateY(180deg);
-    padding: 10px;
+    padding: 12px;
     display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: center;
+    text-align: center;
+    font-size: 0.75rem;
+    gap: 4px;
+}
+
+.card-back strong {
     font-size: 0.8rem;
+    line-height: 1.3;
+    color: #fff;
 }
 
-/* Game States */
+.card-back p {
+    color: #888;
+    font-size: 0.7rem;
+}
+
+/* ===== Selection State ===== */
+.selected .card-inner {
+    transform: scale(0.95);
+}
+
 .selected .card-front {
-    border: 4px solid #3ea6ff;
-    /* YouTube Blue */
+    border-color: #3ea6ff;
+    border-width: 3px;
+    box-shadow: 0 0 14px rgba(62, 166, 255, 0.35);
 }
 
-.solved {
-    opacity: 0.3;
+.selected .card-inner::after {
+    content: '✓';
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    z-index: 10;
+    background: #3ea6ff;
+    color: white;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 700;
+    animation: popIn 0.2s ease;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+/* Override hover flip when selected */
+.selected:hover .card-inner {
+    transform: scale(0.95);
+}
+
+/* ===== Animating cards to solved row ===== */
+.card-container.animating-to-solved {
+    position: fixed !important;
+    z-index: 1000;
     pointer-events: none;
-    transform: scale(0.9);
-    transition: all 0.5s;
+    transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+.card-container.animating-to-solved .card-inner {
+    transform: none !important;
+}
+
+.card-container.animating-to-solved .card-inner::after {
+    display: none;
+}
+
+.card-container.fade-out {
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.3s ease;
+}
+
+/* ===== Controls ===== */
+.controls {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.btn {
+    padding: 10px 28px;
+    border: none;
+    border-radius: 24px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 0.3px;
+}
+
+.btn:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background: #2a2a2a;
+    color: #ccc;
+    border: 1.5px solid #444;
+}
+
+.btn-secondary:not(:disabled):hover {
+    background: #333;
+    border-color: #666;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #3ea6ff, #1a8cff);
+    color: white;
+    box-shadow: 0 4px 14px rgba(62, 166, 255, 0.3);
+}
+
+.btn-primary:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(62, 166, 255, 0.45);
+}
+
+.btn-primary:not(:disabled):active {
+    transform: translateY(0);
+}
+
+/* ===== Confetti ===== */
+#confetti-canvas {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9999;
+}
+
+.confetti-piece {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    top: -10px;
+    z-index: 9999;
+    pointer-events: none;
+    animation: confettiFall var(--fall-duration) linear forwards;
+    opacity: 0.9;
+}
+
+/* ===== Animations ===== */
+@keyframes popIn {
+    0% { transform: scale(0); }
+    70% { transform: scale(1.15); }
+    100% { transform: scale(1); }
+}
+
+@keyframes headShake {
+    0% { transform: translateX(0); }
+    15% { transform: translateX(-6px); }
+    30% { transform: translateX(5px); }
+    45% { transform: translateX(-4px); }
+    60% { transform: translateX(2px); }
+    75% { transform: translateX(-1px); }
+    100% { transform: translateX(0); }
+}
+
+@keyframes solvedSlideIn {
+    0% {
+        opacity: 0;
+        transform: translateY(-10px) scale(0.97);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@keyframes confettiFall {
+    0% {
+        transform: translateY(0) rotate(0deg);
+        opacity: 1;
+    }
+    100% {
+        transform: translateY(100vh) rotate(var(--rotation));
+        opacity: 0;
+    }
+}
+
+@keyframes cardEntry {
+    0% {
+        opacity: 0;
+        transform: translateY(20px) scale(0.9);
+    }
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.card-container.entering {
+    animation: cardEntry 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    animation-delay: var(--entry-delay, 0s);
+    opacity: 0;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 700px) {
+    .grid {
+        grid-template-columns: repeat(4, 1fr);
+        gap: 6px;
+    }
+
+    .logo h1 {
+        font-size: 1.3rem;
+    }
+
+    .btn {
+        padding: 8px 18px;
+        font-size: 0.8rem;
+    }
+
+    .solved-row .solved-label {
+        font-size: 0.8rem;
+    }
+
+    .card-back strong {
+        font-size: 0.65rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .solved-row .solved-thumbnails img {
+        width: calc(50% - 3px);
+    }
+
+    .solved-row .solved-thumbnails {
+        flex-wrap: wrap;
+    }
 }
